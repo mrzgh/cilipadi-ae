@@ -28,7 +28,7 @@ the implementation is not expected to handle overlapping input and output buffer
 inputs and outputs can overlap, and returns an error if this behavior is not supported.)
 */
 
-#define CRYPTO_KEYBYTES 32 // key size in bytes
+#define CRYPTO_KEYBYTES 16 // key size in bytes
 #define CRYPTO_NSECBYTES 0 // shall always be set to zero
 #define CRYPTO_NPUBBYTES 12 // nonce size in bytes
 #define CRYPTO_ABYTES 16 // the ciphertext is at most CRYPTO_ABYTES bytes longer than the plaintext
