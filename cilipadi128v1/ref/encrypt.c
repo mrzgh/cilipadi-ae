@@ -33,8 +33,9 @@ int crypto_aead_encrypt(
 	const unsigned char *k) {
 
 	unsigned char state[32]; // 16-byte state
+	unsigned char state_r[8]; // 8-byte bitrate part of the state
 	const unsigned char iv[8] = {0x00, 0x80, 0x00, 0x40, 0x12, 0x10, 0x04, 0x00};
-	int i;
+	int i, j, t_mlen;
 
 	/*
 	 * Initialization
@@ -58,24 +59,66 @@ int crypto_aead_encrypt(
 	printf("initial state = \n");
 	for (i=0; i<32; i++) printf("%02x ", state[i]); printf("\n");
 
-	permutation_a_n(state);
+	permutation_n(state, 18);
+
+	/*
+	 * Padding of the associated data and message
+	 */
 
 
 	/*
 	 * Processing the associated data
 	 */
 	// bitrate r = 64 bits
+	// assume that we have only one AD
+	for (i = 0; i < adlen; ++i) {
+		state_r[i] = ad[i];
+	}
+
+	printf("state (before AD phase) = \n");
+	for (i=0; i<32; i++) printf("%02x", state[i]); printf("\n");
+
+	// XOR with AD
+	xor_bytes(state, state_r, 8);
+
+	printf("state (after XOR with AD = \n");
+	for (i=0; i<32; i++) printf("%02x", state[i]); printf("\n");
+
+	permutation_n(state, 16);
+
+	// XOR the last bit of the state with '1' to indicate completion of AD phase
+	state[31] ^= 1;
+
+	printf("state (after AD phase) = \n");
+	for (i=0; i<32; i++) printf("%02x", state[i]); printf("\n");
 
 
 	/*
 	 * Processing the plaintext
 	 */
+	t_mlen = mlen/8;
+	for (i = 0; i < t_mlen; ++i) {
+
+		for (j = 0; j < 8; ++j) {
+			state_r[j] = m[i*8+j];
+		}
+
+		// XOR message with bitrate part of the state
+		xor_bytes(state, state_r, 8);
+
+		// output ciphertext
+		for (j = 0; j < 8; ++j) {
+			c[i*8+j] = state[j];
+		}
+
+		permutation_n(state, 16);
+	}
 
 	//printf("clen = %llu\n", *clen);
 
 	printf("state = \n");
 	for (i = 0; i < 32; ++i) {
-		printf("%02x ", state[i]);
+		printf("%02x", state[i]);
 	}
 
 	return 0;
