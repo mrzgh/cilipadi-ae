@@ -8,8 +8,8 @@
 #ifndef CILIPADI128V1_REF_CILIPADI_H_
 #define CILIPADI128V1_REF_CILIPADI_H_
 
-int permutation_a_n(unsigned char *state);
-int permutation_b_n(unsigned char *state);
+int permutation_n(unsigned char *state, int rounds);
 int f_function(unsigned char *x);
+int xor_bytes(unsigned char *x, unsigned char *y, int len);
 
 #endif /* CILIPADI128V1_REF_CILIPADI_H_ */

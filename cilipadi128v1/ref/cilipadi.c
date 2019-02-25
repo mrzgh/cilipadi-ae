@@ -21,13 +21,13 @@ int xor_bytes(unsigned char *x, unsigned char *y, int len) {
 	return 0;
 }
 
-int permutation_a_n(unsigned char *state) {
+int permutation_n(unsigned char *state, int rounds) {
 	unsigned char x1[8];
 	unsigned char x2[8];
 	unsigned char x3[8];
 	unsigned char x4[8];
 	unsigned char temp[8];
-	int i, j, rounds=16;
+	int i, j;
 
 	// divide the input into 4 branches
 	for (i = 0; i < 8; ++i) x1[i] = state[i];
@@ -35,16 +35,18 @@ int permutation_a_n(unsigned char *state) {
 	for (i = 0; i < 8; ++i) x3[i] = state[i+16];
 	for (i = 0; i < 8; ++i) x4[i] = state[i+24];
 
-	printf("state (input to round 1) = \n");
-	for (i=0; i<32; i++) printf("%02x ", state[i]); printf("\n");
+	//printf("state (input to round 1) = \n");
+	//for (i=0; i<32; i++) printf("%02x ", state[i]); printf("\n");
 
 	for (i = 0; i < rounds; ++i) {
+		/*
 		printf("round %d\n", i);
 
 		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
+		 */
 
 		memcpy(temp, x1, 8);
 		f_function(temp);
@@ -61,15 +63,13 @@ int permutation_a_n(unsigned char *state) {
 		memcpy(x3, x4, 8); // x4 -> x3
 		memcpy(x4, temp, 8); // temp -> x4
 
+		/*
 		printf("-\n");
 		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
-
-		//printf("state (output of round %2d) = \n", i+1);
-		//for (j=0; j<32; j++) printf("%02x ", state[j]); printf("\n");
-
+		*/
 	}
 
 	// put value back to state
@@ -78,10 +78,9 @@ int permutation_a_n(unsigned char *state) {
 	for (i = 0; i < 8; ++i) state[i+16] = x3[i];
 	for (i = 0; i < 8; ++i) state[i+24] = x4[i];
 
-	return 0;
-}
+	//printf("state (output of permutation_a_n)\n");
+	//for (j=0; j<32; j++) printf("%02x", state[j]); printf("\n");
 
-int permutation_b_n(unsigned char *state) {
 	return 0;
 }
 
@@ -119,9 +118,9 @@ int main() {
 	const unsigned char m[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			  	  	  	  	  	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	unsigned long long mlen = 16;
-	const unsigned char ad[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	  	  	  	  	  	  	  	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	unsigned long long adlen = 16;
+	//const unsigned char ad[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	const unsigned char ad[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	unsigned long long adlen = 8;
 	const unsigned char *nsec;
 	const unsigned char npub[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	const unsigned char k[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -129,7 +128,7 @@ int main() {
 
 	unsigned char x[4] = { 0x00, 0x01, 0x20, 0x30 };
 	unsigned char y[4] = { 0xff, 0x12, 0x20, 0x03 };
-	int i;
+	int i, j, t_mlen;
 
 	printf("Test\n");
 	for (i=0; i<4; i++) printf("%02x ", x[i]); printf("\n");
@@ -140,6 +139,15 @@ int main() {
 
 	clen = &mlen;
 	crypto_aead_encrypt(c, clen, m, mlen, ad, adlen, nsec, npub, k);
+
+	t_mlen = mlen / 8;
+	printf("\nCiphertext =\n");
+	for (i = 0; i < t_mlen; ++i) {
+		for (j = 0; j < 8; ++j) {
+			printf("%02x", c[i*8+j]);
+		}
+		printf("\n");
+	}
 
 	return 0;
 }
