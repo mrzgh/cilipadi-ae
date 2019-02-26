@@ -176,7 +176,7 @@ int f_function(unsigned char *x) {
 	return 0;
 }
 
-/*
+//*
 int main() {
 	unsigned char c[32]; // 16-byte ciphertext + 16-byte tag
 	unsigned long long *clen;
@@ -187,9 +187,8 @@ int main() {
 	//const unsigned char ad[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	const unsigned char ad[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	unsigned long long adlen = 8;
-	const unsigned char *nsec;
-	unsigned char *nsec_dec;
-	const unsigned char npub[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	const unsigned char npub[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+									 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	const unsigned char k[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
@@ -207,7 +206,7 @@ int main() {
 
 	//clen = &mlen;
 	clen = malloc((size_t)(1));
-	crypto_aead_encrypt(c, clen, m, mlen, ad, adlen, nsec, npub, k);
+	crypto_aead_encrypt(c, clen, m, mlen, ad, adlen, NULL, npub, k);
 
 	t_mlen = mlen / 8;
 
@@ -235,8 +234,7 @@ int main() {
 		printf("%02x", c[mlen+i]);
 	}
 
-	nsec_dec = malloc((size_t)(1));
-	crypto_aead_decrypt(m_dec, &mlen, nsec_dec, c, *clen, ad, adlen, npub, k);
+	crypto_aead_decrypt(m_dec, &mlen, NULL, c, *clen, ad, adlen, npub, k);
 
 	printf("DECRYPTION\n");
 
@@ -264,4 +262,4 @@ int main() {
 
 	return 0;
 }
-*/
+//*/

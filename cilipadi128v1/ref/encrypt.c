@@ -34,30 +34,24 @@ int crypto_aead_encrypt(
 	const unsigned char *npub,
 	const unsigned char *k) {
 
-	unsigned char state[32]; // 16-byte state
+	unsigned char state[CRYPTO_KEYBYTES + CRYPTO_NPUBBYTES]; // 16-byte state
 	unsigned char state_r[8]; // 8-byte rate part of the state
-	const unsigned char iv[8] = {0x00, 0x80, 0x00, 0x40, 0x12, 0x10, 0x04, 0x00};
 	int i, j, t_mlen;
-	int nlen = 32; // the length of permutation in bytes
-	int taglen = 16; // length of the tag in bytes
+	int nlen = CRYPTO_KEYBYTES + CRYPTO_NPUBBYTES; // the length of permutation in bytes (32 for CiliPadi-Lite)
+	int taglen = CRYPTO_ABYTES; // length of the tag in bytes
 
 	/*
 	 * Initialization
 	 */
 
-	// fill in the IV
-	for (i=0; i<8; i++) {
-		state[i] = iv[i];
-	}
-
 	// fill in the key
-	for (i=8; i<24; i++) {
-		state[i] = k[i-8];
+	for (i=0; i<CRYPTO_KEYBYTES; i++) {
+		state[i] = k[i];
 	}
 
 	// fill in the nonce
-	for (i=24; i<nlen; i++) {
-		state[i] = npub[i-24];
+	for (i=CRYPTO_KEYBYTES; i<nlen; i++) {
+		state[i] = npub[i-16];
 	}
 
 	printf("initial state = \n");
@@ -194,31 +188,25 @@ int crypto_aead_decrypt(
 	const unsigned char *npub,
 	const unsigned char *k) {
 
-	unsigned char state[32]; // 16-byte state
+	unsigned char state[CRYPTO_KEYBYTES + CRYPTO_NPUBBYTES]; // 16-byte state
 	unsigned char state_r[8]; // 8-byte rate part of the state
-	const unsigned char iv[8] = {0x00, 0x80, 0x00, 0x40, 0x12, 0x10, 0x04, 0x00};
 	int i, j, t_clen;
-	int nlen = 32; // the length of permutation in bytes
-	int taglen = 16; // length of the tag in bytes
-	unsigned char tag[16]; // computed tag
+	int nlen = CRYPTO_KEYBYTES + CRYPTO_NPUBBYTES; // the length of permutation in bytes
+	int taglen = CRYPTO_ABYTES; // length of the tag in bytes
+	unsigned char tag[CRYPTO_ABYTES]; // computed tag
 
 	/*
 	 * Initialization
 	 */
 
-	// fill in the IV
-	for (i=0; i<8; i++) {
-		state[i] = iv[i];
-	}
-
 	// fill in the key
-	for (i=8; i<24; i++) {
-		state[i] = k[i-8];
+	for (i=0; i<CRYPTO_KEYBYTES; i++) {
+		state[i] = k[i];
 	}
 
 	// fill in the nonce
-	for (i=24; i<nlen; i++) {
-		state[i] = npub[i-24];
+	for (i=CRYPTO_KEYBYTES; i<nlen; i++) {
+		state[i] = npub[i-16];
 	}
 
 	printf("initial state = \n");
