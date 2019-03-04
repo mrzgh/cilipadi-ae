@@ -11,6 +11,7 @@
 #include "crypto_aead.h"
 #include <string.h> // for memcpy
 #include <stdlib.h> // for malloc(), free()
+#include "api.h"
 
 int xor_bytes(unsigned char *x, const unsigned char *y, int len) {
 	int i;
@@ -28,7 +29,7 @@ int permutation_n(unsigned char *state, int rounds) {
 	unsigned char x3[8];
 	unsigned char x4[8];
 	unsigned char temp[8];
-	int i, j;
+	int i;
 
 	// divide the input into 4 branches
 	for (i = 0; i < 8; ++i) x1[i] = state[i];
@@ -91,7 +92,7 @@ int permutation_n_inv(unsigned char *state, int rounds) {
 	unsigned char x3[8];
 	unsigned char x4[8];
 	unsigned char temp[8];
-	int i, j;
+	int i;
 
 	// divide the input into 4 branches
 	for (i = 0; i < 8; ++i) x1[i] = state[i];
@@ -178,7 +179,8 @@ int f_function(unsigned char *x) {
 
 //*
 int main() {
-	unsigned char c[32]; // 16-byte ciphertext + 16-byte tag
+	//unsigned char c[32]; // 16-byte ciphertext + 16-byte tag
+	unsigned char *c;
 	unsigned long long *clen;
 	const unsigned char m[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			  	  	  	  	  	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -192,20 +194,12 @@ int main() {
 	const unsigned char k[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-	unsigned char x[4] = { 0x00, 0x01, 0x20, 0x30 };
-	unsigned char y[4] = { 0xff, 0x12, 0x20, 0x03 };
 	int i, j, t_mlen;
-	int taglen = 16;
-
-	printf("Test\n");
-	for (i=0; i<4; i++) printf("%02x ", x[i]); printf("\n");
-	for (i=0; i<4; i++) printf("%02x ", y[i]); printf("\n");
-	xor_bytes(x, y, 4);
-
-	for (i=0; i<4; i++) printf("%02x ", x[i]); printf("\n");
+	int taglen = CRYPTO_ABYTES;
 
 	//clen = &mlen;
 	clen = malloc((size_t)(1));
+	c = malloc((size_t)(mlen + CRYPTO_ABYTES));
 	crypto_aead_encrypt(c, clen, m, mlen, ad, adlen, NULL, npub, k);
 
 	t_mlen = mlen / 8;
@@ -230,11 +224,8 @@ int main() {
 	}
 
 	printf("Tag = \n");
-	for (i = 0; i < taglen; ++i) {
-		printf("%02x", c[mlen+i]);
-	}
+	for (i = 0; i < taglen; ++i) printf("%02x", c[mlen+i]);	printf("\n");
 
-	crypto_aead_decrypt(m_dec, &mlen, NULL, c, *clen, ad, adlen, npub, k);
 
 	printf("DECRYPTION\n");
 
@@ -245,20 +236,27 @@ int main() {
 		printf("\n");
 	}
 
-	printf("\nPlaintext =\n");
-	for (i = 0; i < t_mlen; ++i) {
-		for (j = 0; j < 8; ++j) printf("%02x", m_dec[i*8+j]);
-		printf("\n");
-	}
+	// tamper
+	c[0] ^=1;
 
-	printf("\nAD =\n");
-	for (i = 0; i < 1; ++i) {
-		for (j = 0; j < adlen; ++j) printf("%02x", ad[i*8+j]);
-		printf("\n");
+
+	if (crypto_aead_decrypt(m_dec, &mlen, NULL, c, *clen, ad, adlen, npub, k) == 0) {
+		printf("\nPlaintext =\n");
+		for (i = 0; i < t_mlen; ++i) {
+			for (j = 0; j < 8; ++j) printf("%02x", m_dec[i*8+j]);
+			printf("\n");
+		}
+
+		printf("\nAD =\n");
+		for (i = 0; i < 1; ++i) {
+			for (j = 0; j < adlen; ++j) printf("%02x", ad[i*8+j]);
+			printf("\n");
+		}
 	}
 
 
 	free(clen);
+	free(c);
 
 	return 0;
 }

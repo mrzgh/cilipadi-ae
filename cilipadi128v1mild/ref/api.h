@@ -31,7 +31,7 @@ inputs and outputs can overlap, and returns an error if this behavior is not sup
 #define CRYPTO_KEYBYTES 16 // key size in bytes
 #define CRYPTO_NSECBYTES 0 // shall always be set to zero
 #define CRYPTO_NPUBBYTES 16 // nonce size in bytes
-#define CRYPTO_ABYTES 16 // the ciphertext is at most CRYPTO_ABYTES bytes longer than the plaintext
+#define CRYPTO_ABYTES 8 // the ciphertext is at most CRYPTO_ABYTES bytes longer than the plaintext
 #define CRYPTO_NOOVERLAP 1
 
 #endif /* CILIPADI128V1_REF_API_H_ */
