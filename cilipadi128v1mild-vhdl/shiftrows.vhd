@@ -37,7 +37,7 @@ entity shiftrows is
 end shiftrows;
 
 architecture shiftrows_arc of shiftrows is
-signal r0,r1,r2,r3 : STD_LOGIC_VECTOR (15 to 0);
+signal r0,r1,r2,r3 : STD_LOGIC_VECTOR (15 downto 0);
 begin
 
 -- row by row

@@ -58,6 +58,7 @@ case x is
     when "1101"=>y<="0111";
     when "1110"=>y<="0001";
     when "1111"=>y<="0010";
+    when others=>y<="0000";
 end case;
 end process;
 
