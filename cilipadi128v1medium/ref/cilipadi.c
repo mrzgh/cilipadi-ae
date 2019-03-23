@@ -51,11 +51,11 @@ int permutation_n(unsigned char *state, int rounds) {
 		 */
 
 		memcpy(temp, x1, 8);
-		f_function(temp);
+		f_function(temp, 1);
 		xor_bytes(x2, temp, 8);
 
 		memcpy(temp, x3, 8);
-		f_function(temp);
+		f_function(temp, 2);
 		xor_bytes(x4, temp, 8);
 
 		// shuffle
@@ -86,19 +86,97 @@ int permutation_n(unsigned char *state, int rounds) {
 	return 0;
 }
 
-int permutation_n_inv(unsigned char *state, int rounds) {
+
+int permutation_256(unsigned char *state, int rounds) {
 	unsigned char x1[8];
 	unsigned char x2[8];
 	unsigned char x3[8];
 	unsigned char x4[8];
 	unsigned char temp[8];
 	int i;
+#ifdef DEBUG
+	int j;
+#endif
 
 	// divide the input into 4 branches
-	for (i = 0; i < 8; ++i) x1[i] = state[i];
-	for (i = 0; i < 8; ++i) x2[i] = state[i+8];
-	for (i = 0; i < 8; ++i) x3[i] = state[i+16];
-	for (i = 0; i < 8; ++i) x4[i] = state[i+24];
+	for (i = 0; i < 8; ++i) {
+		x1[i] = state[i];
+		x2[i] = state[i+8];
+		x3[i] = state[i+16];
+		x4[i] = state[i+24];
+	}
+
+	for (i = 0; i < rounds; ++i) {
+
+#ifdef DEBUG
+		printf("\nstate (input  to round %d): ", i+1);
+
+		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
+		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
+		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
+		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
+#endif
+
+		memcpy(temp, x1, 8);
+		f_function(temp, 1);
+		xor_bytes(x2, temp, 8);
+
+		memcpy(temp, x3, 8);
+		f_function(temp, 2);
+		xor_bytes(x4, temp, 8);
+
+		// shuffle
+		memcpy(temp, x1, 8);
+		memcpy(x1, x2, 8); // x2 -> x1
+		memcpy(x2, x3, 8); // x3 -> x2
+		memcpy(x3, x4, 8); // x4 -> x3
+		memcpy(x4, temp, 8); // temp -> x4
+
+
+#ifdef DEBUG
+		printf("state (output of round %d): ", i+1);
+
+		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
+		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
+		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
+		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
+#endif
+	}
+
+	// put value back to state
+	for (i = 0; i < 8; ++i) {
+		state[i   ] = x1[i];
+		state[i+ 8] = x2[i];
+		state[i+16] = x3[i];
+		state[i+24] = x4[i];
+	}
+
+	//printf("state (output of permutation_a_n)\n");
+	//for (j=0; j<32; j++) printf("%02x", state[j]); printf("\n");
+
+	return 0;
+}
+
+
+int permutation_384(unsigned char *state, int rounds) {
+	unsigned char x1[8];
+	unsigned char x2[8];
+	unsigned char x3[8];
+	unsigned char x4[8];
+	unsigned char x5[8];
+	unsigned char x6[8];
+	unsigned char temp[8];
+	int i;
+
+	// divide the input into 6 branches
+	for (i = 0; i < 8; ++i) {
+		x1[i] = state[i];
+		x2[i] = state[i+8];
+		x3[i] = state[i+16];
+		x4[i] = state[i+24];
+		x5[i] = state[i+32];
+		x6[i] = state[i+40];
+	}
 
 	//printf("state (input to round 1) = \n");
 	//for (i=0; i<32; i++) printf("%02x ", state[i]); printf("\n");
@@ -114,19 +192,26 @@ int permutation_n_inv(unsigned char *state, int rounds) {
 		 */
 
 		memcpy(temp, x1, 8);
-		f_function(temp);
+		f_function(temp, 1);
 		xor_bytes(x2, temp, 8);
 
 		memcpy(temp, x3, 8);
-		f_function(temp);
+		f_function(temp, 2);
 		xor_bytes(x4, temp, 8);
 
-		// shuffle (reverse from the forward direction)
-		memcpy(temp, x4, 8);
-		memcpy(x4, x3, 8); // x3 -> x4
-		memcpy(x3, x2, 8); // x2 -> x3
-		memcpy(x2, x1, 8); // x1 -> x2
-		memcpy(x1, temp, 8); // temp -> x1
+		memcpy(temp, x5, 8);
+		f_function(temp, 3);
+		xor_bytes(x6, temp, 8);
+
+
+		// shuffle
+		memcpy(temp, x1, 8);
+		memcpy(x1, x2, 8); // x2 -> x1
+		memcpy(x2, x3, 8); // x3 -> x2
+		memcpy(x3, x6, 8); // x6 -> x3
+		memcpy(x6, x5, 8); // x5 -> x6
+		memcpy(x5, x4, 8); // x4 -> x5
+		memcpy(x4, temp, 8); // temp -> x4
 
 		/*
 		printf("-\n");
@@ -138,10 +223,14 @@ int permutation_n_inv(unsigned char *state, int rounds) {
 	}
 
 	// put value back to state
-	for (i = 0; i < 8; ++i) state[i   ] = x1[i];
-	for (i = 0; i < 8; ++i) state[i+ 8] = x2[i];
-	for (i = 0; i < 8; ++i) state[i+16] = x3[i];
-	for (i = 0; i < 8; ++i) state[i+24] = x4[i];
+	for (i = 0; i < 8; ++i) {
+		state[i   ] = x1[i];
+		state[i+ 8] = x2[i];
+		state[i+16] = x3[i];
+		state[i+24] = x4[i];
+		state[i+32] = x5[i];
+		state[i+40] = x6[i];
+	}
 
 	//printf("state (output of permutation_a_n)\n");
 	//for (j=0; j<32; j++) printf("%02x", state[j]); printf("\n");
@@ -149,7 +238,7 @@ int permutation_n_inv(unsigned char *state, int rounds) {
 	return 0;
 }
 
-int f_function(unsigned char *x) {
+int f_function(unsigned char *x, int l) {
 	unsigned char led_state[4][4];
 	int i, j, rounds=2;
 
@@ -160,6 +249,13 @@ int f_function(unsigned char *x) {
 	}
 
 	for (i = 0; i < rounds; ++i) {
+		// note that the implemented LED is v2 which require the XOR of the key length (i.e. 64 or 128 bits)
+		// to the first column of the state.
+		// We do not require this and hence, need to undo the action of the XOR by XORing with 0x4.
+		// We also need to undo setting cell (1,0) with 1
+		// Instead, for cell (0,0) and (1,0), we need to XOR with the F-function number l
+		led_state[0][0] ^= (0x4 ^       ((l>>2) & 0x3));
+		led_state[1][0] ^= (0x4 ^ 0x1 ^ ( l     & 0x3));
 		AddConstants(led_state, i);
 		SubCell(led_state);
 		ShiftRow(led_state);
@@ -187,7 +283,7 @@ int main() {
 								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			  	  	  	  	  	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	unsigned char *m_dec;
-	unsigned long long mlen = 32;
+	unsigned long long mlen = BYTERATE;
 	//const unsigned char ad[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	const unsigned char ad[16] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 							 	   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };

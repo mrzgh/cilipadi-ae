@@ -108,7 +108,7 @@ int init_phase(unsigned char *state, const unsigned char *npub, const unsigned c
 	//printf("initial state = \n");
 	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
 
-	permutation_n(state, AROUNDS);
+	permutation_384(state, AROUNDS);
 
 	return 0;
 }
@@ -129,7 +129,7 @@ int ad_phase(unsigned char *state, unsigned char *state_r, const unsigned char *
 		//printf("state (after XOR with AD) = \n");
 		//for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
 
-		permutation_n(state, BROUNDS);
+		permutation_384(state, BROUNDS);
 	}
 
 	// XOR the last bit of the state with '1' to indicate completion of AD phase
@@ -154,14 +154,20 @@ int ciphering_phase(unsigned char *state,
 	t_inlen = inlen/BYTERATE;
 	if (enc==0) t_inlen--;
 
-	//printf("t_mlen = %d\n", t_inlen);
+	printf("t_mlen = %d\n", t_inlen);
 
 	// allocate array for ciphertext
 	//c = malloc((size_t)(mlen + taglen)); // ciphertext + tag
 
+	// encryption
 	if (enc) {
-		for (i = 0; i < (t_inlen-1); ++i) {
+		for (i = 0; i < t_inlen; ++i) {
 
+#ifdef DEBUG
+			printf("M%2d: ", i+1);
+			for (j = 0; j < BYTERATE; ++j) printf("%02x", in[i*BYTERATE+j]);
+			printf("\n");
+#endif
 			for (j = 0; j < BYTERATE; ++j) {
 				state_r[j] = in[i*BYTERATE+j];
 			}
@@ -174,14 +180,23 @@ int ciphering_phase(unsigned char *state,
 				out[i*BYTERATE+j] = state[j];
 			}
 
+#ifdef DEBUG
+			printf("C%2d: ", i+1);
+			for (j = 0; j < BYTERATE; ++j) printf("%02x", out[i*BYTERATE+j]);
+			printf("\n");
+#endif
+
 			//printf("state (after XOR with message %2d) \n", i+1);
 			//for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]); printf("\n");
 
-			permutation_n(state, BROUNDS);
+			if ((i+1) < t_inlen) {
+				permutation_384(state, BROUNDS);
+			}
 		}
 	}
+	// decryption
 	else {
-		for (i = 0; i < (t_inlen-1); ++i) {
+		for (i = 0; i <t_inlen; ++i) {
 
 			// XOR ciphertext with bitrate part of the state to obtain message
 			for (j = 0; j < BYTERATE; ++j) {
@@ -196,8 +211,9 @@ int ciphering_phase(unsigned char *state,
 			//printf("state (after XOR with ciphertext %2d) \n", i+1);
 			//for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]); printf("\n");
 
-			//permutation_n_inv(state, BROUNDS);
-			permutation_n(state, BROUNDS);
+			if ((i+1) < t_inlen) {
+				permutation_384(state, BROUNDS);
+			}
 		}
 	}
 
@@ -242,7 +258,7 @@ int ciphering_phase(unsigned char *state,
 int finalization_phase(unsigned char *state, const unsigned char *k) {
 	//int i;
 
-	permutation_n(state, AROUNDS);
+	permutation_384(state, AROUNDS);
 
 	//printf("state (after applying p^a_n) \n");
 	//for (i = 0; i < STATELEN; ++i) printf("%02x", state[i]); printf("\n");
@@ -288,6 +304,9 @@ int crypto_aead_encrypt(
 	/*
 	 * Initialization
 	 */
+#ifdef DEBUG
+	printf("-- INIT PHASE --\n");
+#endif
 	init_phase(state, npub, k);
 
 	/*
@@ -306,6 +325,9 @@ int crypto_aead_encrypt(
 	/*
 	 * Processing the associated data
 	 */
+#ifdef DEBUG
+	printf("-- AD PHASE --\n");
+#endif
 	//printf("state (before AD phase) = \n");
 	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
 
@@ -318,11 +340,17 @@ int crypto_aead_encrypt(
 	/*
 	 * Processing the plaintext
 	 */
+#ifdef DEBUG
+	printf("-- MESSAGE ENCRYPTION PHASE --\n");
+#endif
 	ciphering_phase(state, state_r, mx, mxlen, c, 1);
 
 	/*
 	 * Finalization Phase
 	 */
+#ifdef DEBUG
+	printf("-- FINALIZATION PHASE --\n");
+#endif
 	finalization_phase(state, k);
 
 	// output the tag
@@ -371,6 +399,9 @@ int crypto_aead_decrypt(
 	/*
 	 * Initialization
 	 */
+#ifdef DEBUG
+	printf("-- INIT PHASE --\n");
+#endif
 	init_phase(state, npub, k);
 
 	/*
@@ -388,6 +419,9 @@ int crypto_aead_decrypt(
 	 * Processing the associated data
 	 */
 
+#ifdef DEBUG
+	printf("-- AD PHASE --\n");
+#endif
 	//printf("state (before AD phase) = \n");
 	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
 
@@ -400,11 +434,17 @@ int crypto_aead_decrypt(
 	/*
 	 * Processing the ciphertext
 	 */
+#ifdef DEBUG
+	printf("-- MESSAGE DECRYPTION PHASE --\n");
+#endif
 	ciphering_phase(state, state_r, c, clen, m, 0);
 
 	/*
 	 * Finalization Phase
 	 */
+#ifdef DEBUG
+	printf("-- FINALIZATION PHASE --\n");
+#endif
 	finalization_phase(state, k);
 
 	// output the tag
@@ -423,6 +463,12 @@ int crypto_aead_decrypt(
 			return -1;
 		}
 	}
+
+	printf("\nComputed plaintext =\n");
+	for (i = 0; i < *mlen; ++i) {
+		printf("%02x", m[i]);
+	}
+	printf("\n");
 
 	free(cx);
 	free(adx);
