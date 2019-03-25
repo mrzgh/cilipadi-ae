@@ -126,8 +126,10 @@ int ad_phase(unsigned char *state, unsigned char *state_r, const unsigned char *
 		// XOR with AD
 		xor_bytes(state, state_r, BYTERATE);
 
-		//printf("state (after XOR with AD) = \n");
-		//for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
+#ifdef DEBUG
+		printf("  after XOR with AD = ");
+		for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
+#endif
 
 		permutation_256(state, BROUNDS);
 	}
@@ -135,6 +137,10 @@ int ad_phase(unsigned char *state, unsigned char *state_r, const unsigned char *
 	// XOR the last bit of the state with '1' to indicate completion of AD phase
 	state[STATELEN-1] ^= 1;
 
+#ifdef DEBUG
+		printf("  end of AD Phase = ");
+		for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
+#endif
 	return 0;
 }
 
@@ -154,7 +160,7 @@ int ciphering_phase(unsigned char *state,
 	t_inlen = inlen/BYTERATE;
 	if (enc==0) t_inlen--;
 
-	printf("t_mlen = %d\n", t_inlen);
+	//printf("t_mlen = %d\n", t_inlen);
 
 	// allocate array for ciphertext
 	//c = malloc((size_t)(mlen + taglen)); // ciphertext + tag
@@ -164,7 +170,7 @@ int ciphering_phase(unsigned char *state,
 		for (i = 0; i < t_inlen; ++i) {
 
 #ifdef DEBUG
-			printf("M%2d: ", i+1);
+			printf("  M%2d: ", i+1);
 			for (j = 0; j < BYTERATE; ++j) printf("%02x", in[i*BYTERATE+j]);
 			printf("\n");
 #endif
@@ -181,7 +187,7 @@ int ciphering_phase(unsigned char *state,
 			}
 
 #ifdef DEBUG
-			printf("C%2d: ", i+1);
+			printf("  C%2d: ", i+1);
 			for (j = 0; j < BYTERATE; ++j) printf("%02x", out[i*BYTERATE+j]);
 			printf("\n");
 #endif
@@ -449,26 +455,30 @@ int crypto_aead_decrypt(
 
 	// output the tag
 	*mlen = clen - CRYPTO_ABYTES;
+#ifdef DEBUG
 	printf("\nComputed Tag =\n");
+#endif
 	for (i = 0; i < CRYPTO_ABYTES; ++i) {
 		tag[i] = state[i];
+#ifdef DEBUG
 		printf("%02x", tag[i]);
+#endif
 	}
+
+#ifdef DEBUG
 	printf("\n");
+#endif
 
 	// compare computed tag with the one received
 	for (i = 0; i < CRYPTO_ABYTES; ++i) {
 		if (tag[i] != c[clen-CRYPTO_ABYTES+i]) {
+
+#ifdef DEBUG
 			printf("Ciphertext not authenticated!\n");
+#endif
 			return -1;
 		}
 	}
-
-	printf("\nComputed plaintext =\n");
-	for (i = 0; i < *mlen; ++i) {
-		printf("%02x", m[i]);
-	}
-	printf("\n");
 
 	free(cx);
 	free(adx);

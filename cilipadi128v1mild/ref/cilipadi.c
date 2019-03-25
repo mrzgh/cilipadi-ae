@@ -23,69 +23,6 @@ int xor_bytes(unsigned char *x, const unsigned char *y, int len) {
 	return 0;
 }
 
-int permutation_n(unsigned char *state, int rounds) {
-	unsigned char x1[8];
-	unsigned char x2[8];
-	unsigned char x3[8];
-	unsigned char x4[8];
-	unsigned char temp[8];
-	int i;
-
-	// divide the input into 4 branches
-	for (i = 0; i < 8; ++i) x1[i] = state[i];
-	for (i = 0; i < 8; ++i) x2[i] = state[i+8];
-	for (i = 0; i < 8; ++i) x3[i] = state[i+16];
-	for (i = 0; i < 8; ++i) x4[i] = state[i+24];
-
-	//printf("state (input to round 1) = \n");
-	//for (i=0; i<32; i++) printf("%02x ", state[i]); printf("\n");
-
-	for (i = 0; i < rounds; ++i) {
-		/*
-		printf("round %d\n", i);
-
-		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
-		 */
-
-		memcpy(temp, x1, 8);
-		f_function(temp, 1);
-		xor_bytes(x2, temp, 8);
-
-		memcpy(temp, x3, 8);
-		f_function(temp, 2);
-		xor_bytes(x4, temp, 8);
-
-		// shuffle
-		memcpy(temp, x1, 8);
-		memcpy(x1, x2, 8); // x2 -> x1
-		memcpy(x2, x3, 8); // x3 -> x2
-		memcpy(x3, x4, 8); // x4 -> x3
-		memcpy(x4, temp, 8); // temp -> x4
-
-		/*
-		printf("-\n");
-		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
-		*/
-	}
-
-	// put value back to state
-	for (i = 0; i < 8; ++i) state[i   ] = x1[i];
-	for (i = 0; i < 8; ++i) state[i+ 8] = x2[i];
-	for (i = 0; i < 8; ++i) state[i+16] = x3[i];
-	for (i = 0; i < 8; ++i) state[i+24] = x4[i];
-
-	//printf("state (output of permutation_a_n)\n");
-	//for (j=0; j<32; j++) printf("%02x", state[j]); printf("\n");
-
-	return 0;
-}
-
 
 int permutation_256(unsigned char *state, int rounds) {
 	unsigned char x1[8];
@@ -109,7 +46,7 @@ int permutation_256(unsigned char *state, int rounds) {
 	for (i = 0; i < rounds; ++i) {
 
 #ifdef DEBUG
-		printf("\nstate (input  to round %d): ", i+1);
+		printf("\n  state (input  to round %d): ", i+1);
 
 		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
@@ -118,11 +55,11 @@ int permutation_256(unsigned char *state, int rounds) {
 #endif
 
 		memcpy(temp, x1, 8);
-		f_function(temp, 1);
+		f_function(temp, 1, i);
 		xor_bytes(x2, temp, 8);
 
 		memcpy(temp, x3, 8);
-		f_function(temp, 2);
+		f_function(temp, 2, i);
 		xor_bytes(x4, temp, 8);
 
 		// shuffle
@@ -134,7 +71,7 @@ int permutation_256(unsigned char *state, int rounds) {
 
 
 #ifdef DEBUG
-		printf("state (output of round %d): ", i+1);
+		printf("  state (output of round %d): ", i+1);
 
 		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
 		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
@@ -192,15 +129,15 @@ int permutation_384(unsigned char *state, int rounds) {
 		 */
 
 		memcpy(temp, x1, 8);
-		f_function(temp, 1);
+		f_function(temp, 1, i);
 		xor_bytes(x2, temp, 8);
 
 		memcpy(temp, x3, 8);
-		f_function(temp, 2);
+		f_function(temp, 2, i);
 		xor_bytes(x4, temp, 8);
 
 		memcpy(temp, x5, 8);
-		f_function(temp, 3);
+		f_function(temp, 3, i);
 		xor_bytes(x6, temp, 8);
 
 
@@ -238,10 +175,28 @@ int permutation_384(unsigned char *state, int rounds) {
 	return 0;
 }
 
-int f_function(unsigned char *x, int l) {
+int f_function(unsigned char *x, int l, int pround) {
 	unsigned char led_state[4][4];
-	int i, j, rounds=2;
+	int i, j, k, rounds=2;
+	const unsigned char RC[48] = {
+		0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3E, 0x3D, 0x3B, 0x37, 0x2F,
+		0x1E, 0x3C, 0x39, 0x33, 0x27, 0x0E, 0x1D, 0x3A, 0x35, 0x2B,
+		0x16, 0x2C, 0x18, 0x30, 0x21, 0x02, 0x05, 0x0B, 0x17, 0x2E,
+		0x1C, 0x38, 0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A,
+		0x34, 0x29, 0x12, 0x24, 0x08, 0x11, 0x22, 0x04
+	};
+	unsigned RC_state[4][4] = {
+		{ 0, 0, 0, 0 },
+		{ 0, 0, 0, 0 },
+		{ 2, 0, 0, 0 },
+		{ 3, 0, 0, 0 }
+	};
 
+#ifdef DEBUG
+	printf("    -- F%2d --\n", l);
+	printf("    input: ");
+	for (i=0; i<8; i++) printf("%02x", x[i]); printf("\n");
+#endif
 	// decompose input into LED 4x4 state bytes
 	for (i = 0; i < 16; ++i) {
 		if(i%2) led_state[i/4][i%4] = x[i>>1]&0xF;
@@ -249,17 +204,97 @@ int f_function(unsigned char *x, int l) {
 	}
 
 	for (i = 0; i < rounds; ++i) {
+
+#ifdef DEBUG
+		printf("    LED round %d\n", i+1);
+		printf("    input:\n");
+		for (j=0; j<4; j++) {
+			printf("    ");
+			for (k=0; k<4; k++) {
+				printf("%x ", led_state[j][k]);
+			}
+			printf("\n");
+		}
+#endif
 		// note that the implemented LED is v2 which require the XOR of the key length (i.e. 64 or 128 bits)
 		// to the first column of the state.
-		// We do not require this and hence, need to undo the action of the XOR by XORing with 0x4.
-		// We also need to undo setting cell (1,0) with 1
-		// Instead, for cell (0,0) and (1,0), we need to XOR with the F-function number l
-		led_state[0][0] ^= (0x4 ^       ((l>>2) & 0x3));
-		led_state[1][0] ^= (0x4 ^ 0x1 ^ ( l     & 0x3));
-		AddConstants(led_state, i);
+		// We do not require this and hence, we have modified LED's source code so that we only use round constants for round 1 LED
+		//AddConstantsCiliPadi(led_state, i, l);
+
+		RC_state[0][0] ^= ((l>>2) & 0x3);
+		RC_state[1][0] ^= ( l     & 0x3);
+
+		unsigned char tmp = (RC[pround] >> 3) & 7;
+
+		RC_state[0][1] ^= tmp;
+		RC_state[2][1] ^= tmp;
+		tmp =  RC[pround] & 7;
+		RC_state[1][1] ^= tmp;
+		RC_state[3][1] ^= tmp;
+
+		if (i > 0) {
+			for (j=0; j<4; j++) for (k=0; k<4; k++) RC_state[j][k] = 0;
+		}
+
+		// AddConstants CiliPadi
+		for (j = 0; j < 4; ++j) {
+			for (k = 0; k < 2; ++k) {
+				led_state[j][k] ^= RC_state[j][k];
+			}
+		}
+
+#ifdef DEBUG
+		printf("    round constants:\n");
+		for (j=0; j<4; j++) {
+			printf("    ");
+			for (k=0; k<4; k++) {
+				printf("%x ", RC_state[j][k]);
+			}
+			printf("\n");
+		}
+
+		printf("    after AC:\n");
+		for (j=0; j<4; j++) {
+			printf("    ");
+			for (k=0; k<4; k++) {
+				printf("%x ", led_state[j][k]);
+			}
+			printf("\n");
+		}
+#endif
 		SubCell(led_state);
+#ifdef DEBUG
+		printf("    after SC:\n");
+		for (j=0; j<4; j++) {
+			printf("    ");
+			for (k=0; k<4; k++) {
+				printf("%x ", led_state[j][k]);
+			}
+			printf("\n");
+		}
+#endif
 		ShiftRow(led_state);
+#ifdef DEBUG
+		printf("    after SR:\n");
+		for (j=0; j<4; j++) {
+			printf("    ");
+			for (k=0; k<4; k++) {
+				printf("%x ", led_state[j][k]);
+			}
+			printf("\n");
+		}
+#endif
 		MixColumn(led_state);
+#ifdef DEBUG
+		printf("    after MCS:\n");
+		for (j=0; j<4; j++) {
+			printf("    ");
+			for (k=0; k<4; k++) {
+				printf("%x ", led_state[j][k]);
+			}
+			printf("\n");
+		}
+#endif
 	}
 
 	// put back into x
@@ -269,6 +304,11 @@ int f_function(unsigned char *x, int l) {
 			x[i*2+j] |= led_state[i][j*2+1];
 		}
 	}
+
+#ifdef DEBUG
+	printf("    output: ");
+	for (i=0; i<8; ++i) printf("%02x", x[i]); printf("\n");
+#endif
 
 	return 0;
 }
@@ -361,6 +401,9 @@ int main() {
 				printf("\n");
 			printf("%02x", ad[i]);
 		}
+	}
+	else {
+		printf("Decryption failed\n");
 	}
 
 
