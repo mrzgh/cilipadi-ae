@@ -108,7 +108,7 @@ int init_phase(unsigned char *state, const unsigned char *npub, const unsigned c
 	//printf("initial state = \n");
 	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
 
-	permutation_256(state, AROUNDS);
+	permutation_384(state, AROUNDS);
 
 	return 0;
 }
@@ -138,7 +138,7 @@ int ad_phase(unsigned char *state, unsigned char *state_r, const unsigned char *
 		for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
 #endif
 
-		permutation_256(state, BROUNDS);
+		permutation_384(state, BROUNDS);
 	}
 
 	// XOR the last bit of the state with '1' to indicate completion of AD phase
@@ -251,7 +251,7 @@ int ciphering_phase(unsigned char *state,
 			//for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]); printf("\n");
 
 			if ((i+1) < t_inlen) {
-				permutation_256(state, BROUNDS);
+				permutation_384(state, BROUNDS);
 			}
 		}
 	}
@@ -351,7 +351,7 @@ int ciphering_phase(unsigned char *state,
 			//for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]); printf("\n");
 
 			if ((i+1) < t_inlen) {
-				permutation_256(state, BROUNDS);
+				permutation_384(state, BROUNDS);
 			}
 		}
 	}
@@ -405,7 +405,7 @@ int finalization_phase(unsigned char *state, const unsigned char *k) {
 	for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
 #endif
 
-	permutation_256(state, AROUNDS);
+	permutation_384(state, AROUNDS);
 
 	//printf("state (after applying p^a_n) \n");
 	//for (i = 0; i < STATELEN; ++i) printf("%02x", state[i]); printf("\n");

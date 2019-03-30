@@ -55,7 +55,7 @@ void fprint_bstr(FILE *fp, const char *label, const unsigned char *data, unsigne
 
 int generate_test_vectors();
 
-//*
+/*
 int main()
 {
 	int ret = generate_test_vectors();
@@ -66,7 +66,7 @@ int main()
 
 	return ret;
 }
-//*/
+*/
 
 int generate_test_vectors()
 {
