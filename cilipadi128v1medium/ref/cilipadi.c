@@ -313,7 +313,7 @@ int f_function(unsigned char *x, int l, int pround) {
 	return 0;
 }
 
-//*
+/*
 int main() {
 	//unsigned char c[32]; // 16-byte ciphertext + 16-byte tag
 	unsigned char *c;
@@ -431,4 +431,4 @@ int main() {
 
 	return 0;
 }
-//*/
+*/
