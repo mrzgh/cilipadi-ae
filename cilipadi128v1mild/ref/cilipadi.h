@@ -8,7 +8,7 @@
 #ifndef CILIPADI128V1_REF_CILIPADI_H_
 #define CILIPADI128V1_REF_CILIPADI_H_
 
-#define BYTERATE 8 // bitrate in bytes
+#define BYTERATE 7 // bitrate in bytes
 #define AROUNDS 18 // number of rounds for P_{a,n}
 #define BROUNDS 16 // number of rounds for P_{b,n}
 #define STATELEN 32 // state size in bytes
