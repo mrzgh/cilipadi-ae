@@ -14,14 +14,9 @@
 #define AROUNDS 18 // number of rounds for P_{a,n}
 #define BROUNDS 16 // number of rounds for P_{b,n}
 #define STATELEN 32 // state size in bytes
-#define DEBUG
-#define DEBUGP // debug for the permutation function P - more detailed printouts
-#define OWNMAIN
-
-typedef struct {
-	unsigned char r[BYTERATE];
-	unsigned char c[STATELEN - BYTERATE];
-} cilipadi_state;
+//#define DEBUG
+//#define DEBUGP // debug for the permutation function P - more detailed printouts
+//#define OWNMAIN
 
 void print_bytes(unsigned char *x, unsigned int start_index, unsigned int len, unsigned int newline);
 int permutation_256(unsigned char *state, int rounds);
