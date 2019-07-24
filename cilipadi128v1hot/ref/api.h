@@ -1,8 +1,10 @@
 /*
  * api.h
  *
- *  Created on: 22 Feb 2019
- *      Author: mrz
+ * CiliPadi lightweight authenticated encryption reference implementation.
+ *
+ * CiliPadi is owned by CyberSecurity Malaysia.
+ * For enquiries, send an email to cilipadi at cybersecurity dot my
  */
 
 #ifndef CILIPADI128V1_REF_API_H_

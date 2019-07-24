@@ -1,8 +1,10 @@
 /*
  * cilipadi.h
  *
- *  Created on: 25 Feb 2019
- *      Author: mrz
+ * CiliPadi lightweight authenticated encryption reference implementation.
+ *
+ * CiliPadi is owned by CyberSecurity Malaysia.
+ * For enquiries, send an email to cilipadi at cybersecurity dot my
  */
 
 #ifndef CILIPADI128V1_REF_CILIPADI_H_
@@ -13,6 +15,8 @@
 #define BROUNDS 18 // number of rounds for P_{b,n}
 #define STATELEN 48 // state size in bytes
 //#define DEBUG
+//#define DEBUGP // debug for the permutation function P - more detailed printouts
+//#define OWNMAIN
 
 int permutation_256(unsigned char *state, int rounds);
 int permutation_384(unsigned char *state, int rounds);

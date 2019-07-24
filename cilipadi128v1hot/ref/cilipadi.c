@@ -1,8 +1,10 @@
 /*
  * cilipadi.c
  *
- *  Created on: 25 Feb 2019
- *      Author: mrz
+ * CiliPadi lightweight authenticated encryption reference implementation.
+ *
+ * CiliPadi is owned by CyberSecurity Malaysia.
+ * For enquiries, send an email to cilipadi at cybersecurity dot my
  */
 
 #include <stdio.h>
@@ -13,6 +15,12 @@
 #include <stdlib.h> // for malloc(), free()
 #include "api.h"
 
+/*
+ * XOR two byte arrays
+ * x   : first array
+ * y   : second array
+ * len : length of array to XOR
+ */
 int xor_bytes(unsigned char *x, const unsigned char *y, int len) {
 	int i;
 
@@ -23,7 +31,11 @@ int xor_bytes(unsigned char *x, const unsigned char *y, int len) {
 	return 0;
 }
 
-
+/*
+ * The Permutation P_{256}
+ * state  : state bytes
+ * rounds : number of rounds
+ */
 int permutation_256(unsigned char *state, int rounds) {
 	unsigned char x1[8];
 	unsigned char x2[8];
@@ -31,9 +43,6 @@ int permutation_256(unsigned char *state, int rounds) {
 	unsigned char x4[8];
 	unsigned char temp[8];
 	int i;
-#ifdef DEBUG
-	int j;
-#endif
 
 	// divide the input into 4 branches
 	for (i = 0; i < 8; ++i) {
@@ -45,13 +54,13 @@ int permutation_256(unsigned char *state, int rounds) {
 
 	for (i = 0; i < rounds; ++i) {
 
-#ifdef DEBUG
-		printf("\n  state (input  to round %d): ", i+1);
+#ifdef DEBUGP
+		printf("\n  S (R%2d input) : ", i+1);
 
-		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
+		print_bytes(x1, 0, 8, 0); printf(" ");
+		print_bytes(x2, 0, 8, 0); printf(" ");
+		print_bytes(x3, 0, 8, 0); printf(" ");
+		print_bytes(x4, 0, 8, 1);
 #endif
 
 		memcpy(temp, x1, 8);
@@ -70,13 +79,13 @@ int permutation_256(unsigned char *state, int rounds) {
 		memcpy(x4, temp, 8); // temp -> x4
 
 
-#ifdef DEBUG
-		printf("  state (output of round %d): ", i+1);
+#ifdef DEBUGP
+		printf("  S (R%2d output): ", i+1);
 
-		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
+		print_bytes(x1, 0, 8, 0); printf(" ");
+		print_bytes(x2, 0, 8, 0); printf(" ");
+		print_bytes(x3, 0, 8, 0); printf(" ");
+		print_bytes(x4, 0, 8, 1);
 #endif
 	}
 
@@ -88,13 +97,14 @@ int permutation_256(unsigned char *state, int rounds) {
 		state[i+24] = x4[i];
 	}
 
-	//printf("state (output of permutation_a_n)\n");
-	//for (j=0; j<32; j++) printf("%02x", state[j]); printf("\n");
-
 	return 0;
 }
 
-
+/*
+* The Permutation P_{384}
+* state  : state bytes
+* rounds : number of rounds
+*/
 int permutation_384(unsigned char *state, int rounds) {
 	unsigned char x1[8];
 	unsigned char x2[8];
@@ -115,18 +125,18 @@ int permutation_384(unsigned char *state, int rounds) {
 		x6[i] = state[i+40];
 	}
 
-	//printf("state (input to round 1) = \n");
-	//for (i=0; i<32; i++) printf("%02x ", state[i]); printf("\n");
-
 	for (i = 0; i < rounds; ++i) {
-		/*
-		printf("round %d\n", i);
 
-		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
-		 */
+#ifdef DEBUGP
+		printf("\n  S (R%2d input) : ", i+1);
+
+		print_bytes(x1, 0, 8, 0); printf(" ");
+		print_bytes(x2, 0, 8, 0); printf(" ");
+		print_bytes(x3, 0, 8, 0); printf(" ");
+		print_bytes(x4, 0, 8, 0); printf(" ");
+		print_bytes(x5, 0, 8, 0); printf(" ");
+		print_bytes(x6, 0, 8, 1);
+#endif
 
 		memcpy(temp, x1, 8);
 		f_function(temp, 1, i);
@@ -150,13 +160,16 @@ int permutation_384(unsigned char *state, int rounds) {
 		memcpy(x5, x4, 8); // x4 -> x5
 		memcpy(x4, temp, 8); // temp -> x4
 
-		/*
-		printf("-\n");
-		for (j=0; j<8; j++) printf("%02x", x1[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x2[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x3[j]); printf(" ");
-		for (j=0; j<8; j++) printf("%02x", x4[j]); printf("\n");
-		*/
+#ifdef DEBUGP
+		printf("\n  S (R%2d output): ", i+1);
+
+		print_bytes(x1, 0, 8, 0); printf(" ");
+		print_bytes(x2, 0, 8, 0); printf(" ");
+		print_bytes(x3, 0, 8, 0); printf(" ");
+		print_bytes(x4, 0, 8, 0); printf(" ");
+		print_bytes(x5, 0, 8, 0); printf(" ");
+		print_bytes(x6, 0, 8, 1);
+#endif
 	}
 
 	// put value back to state
@@ -169,12 +182,15 @@ int permutation_384(unsigned char *state, int rounds) {
 		state[i+40] = x6[i];
 	}
 
-	//printf("state (output of permutation_a_n)\n");
-	//for (j=0; j<32; j++) printf("%02x", state[j]); printf("\n");
-
 	return 0;
 }
 
+/*
+ * The F-Function
+ * x      : input to the F-function
+ * l      : F_l where l = {1, 2}
+ * pround : the permutation round
+ */
 int f_function(unsigned char *x, int l, int pround) {
 	unsigned char led_state[4][4];
 	int i, j, k, rounds=2;
@@ -192,10 +208,10 @@ int f_function(unsigned char *x, int l, int pround) {
 		{ 3, 0, 0, 0 }
 	};
 
-#ifdef DEBUG
+#ifdef DEBUGP
 	printf("    -- F%2d --\n", l);
 	printf("    input: ");
-	for (i=0; i<8; i++) printf("%02x", x[i]); printf("\n");
+	print_bytes(x, 0, 8, 1);
 #endif
 	// decompose input into LED 4x4 state bytes
 	for (i = 0; i < 16; ++i) {
@@ -205,7 +221,7 @@ int f_function(unsigned char *x, int l, int pround) {
 
 	for (i = 0; i < rounds; ++i) {
 
-#ifdef DEBUG
+#ifdef DEBUGP
 		printf("    LED round %d\n", i+1);
 		printf("    input:\n");
 		for (j=0; j<4; j++) {
@@ -243,7 +259,7 @@ int f_function(unsigned char *x, int l, int pround) {
 			}
 		}
 
-#ifdef DEBUG
+#ifdef DEBUGP
 		printf("    round constants:\n");
 		for (j=0; j<4; j++) {
 			printf("    ");
@@ -263,7 +279,7 @@ int f_function(unsigned char *x, int l, int pround) {
 		}
 #endif
 		SubCell(led_state);
-#ifdef DEBUG
+#ifdef DEBUGP
 		printf("    after SC:\n");
 		for (j=0; j<4; j++) {
 			printf("    ");
@@ -274,7 +290,7 @@ int f_function(unsigned char *x, int l, int pround) {
 		}
 #endif
 		ShiftRow(led_state);
-#ifdef DEBUG
+#ifdef DEBUGP
 		printf("    after SR:\n");
 		for (j=0; j<4; j++) {
 			printf("    ");
@@ -285,7 +301,7 @@ int f_function(unsigned char *x, int l, int pround) {
 		}
 #endif
 		MixColumn(led_state);
-#ifdef DEBUG
+#ifdef DEBUGP
 		printf("    after MCS:\n");
 		for (j=0; j<4; j++) {
 			printf("    ");
@@ -305,130 +321,164 @@ int f_function(unsigned char *x, int l, int pround) {
 		}
 	}
 
-#ifdef DEBUG
+#ifdef DEBUGP
 	printf("    output: ");
-	for (i=0; i<8; ++i) printf("%02x", x[i]); printf("\n");
+	print_bytes(x, 0, 8, 1);
 #endif
 
 	return 0;
 }
 
-/*
+#ifdef OWNMAIN
 int main() {
-	//unsigned char c[32]; // 16-byte ciphertext + 16-byte tag
-	unsigned char *c;
-	unsigned long long *clen;
+	unsigned char c[48];
+	unsigned long long clen;
 
-	const unsigned char m[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			  	  	  	  	  	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*
+	const unsigned char m[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+			  	  	  	  	  	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
 								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			  	  	  	  	  	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	*/
 	// test vector value
-	//const unsigned char  m[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	//						 	   0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+	const unsigned char m[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+							 	   0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+							 	   0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+							 	   0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
 
-	unsigned char *m_dec;
-	unsigned long long mlen = BYTERATE;
-	//unsigned long long mlen = 8;
+	//unsigned char *m_dec;
+	unsigned char m_dec[32];
 
-	//const unsigned char ad[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	const unsigned char ad[16] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-							 	   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	//unsigned long long mlen = BYTERATE+8-1;
+	unsigned long long mlen = 0;
+	unsigned long long mlen_dec;
+
+	//const unsigned char ad[16] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	//						 	   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	// test vector value
-	//const unsigned char ad[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	//						 	   0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-	unsigned long long adlen = BYTERATE;
+	const unsigned char ad[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x80,
+							 	   0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+							 	   0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+							 	   0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
 
-	const unsigned char npub[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-									 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	// test vector value
-	//const unsigned char npub[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	//						 	     0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+	//unsigned long long adlen = BYTERATE;
+	unsigned long long adlen = 0;
 
-	const unsigned char k[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-								  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	//const unsigned char npub[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	//								 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	// test vector value
-	//const unsigned char k[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	//						 	  0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+	const unsigned char npub[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+							 	     0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+
+	//const unsigned char k[32] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	// test vector value
+	const unsigned char k[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+							 	  0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+							 	  0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+							 	  0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
 
 	int i;
 
-	//clen = &mlen;
-	clen = malloc((size_t)(1));
-	c = malloc((size_t)(mlen + CRYPTO_ABYTES));
-	crypto_aead_encrypt(c, clen, m, mlen, ad, adlen, NULL, npub, k);
-
+	crypto_aead_encrypt(c, &clen, m, mlen, ad, adlen, NULL, npub, k);
 
 	printf("\nENCRYPTION\n");
 
-	printf("\nPlaintext =");
+	printf("\nPlaintext  : ");
 	for (i = 0; i < mlen; ++i) {
-		if ((i%BYTERATE) == 0)
-			printf("\n");
 		printf("%02x", m[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
 	}
 
-	printf("\nAD =");
+	printf("\nKey        : ");
+	for (i = 0; i < CRYPTO_KEYBYTES; ++i) {
+		printf("%02x", k[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
+	}
+
+	printf("\nNonce      : ");
+	for (i = 0; i < (STATELEN - CRYPTO_KEYBYTES); ++i) {
+		printf("%02x", npub[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
+	}
+
+	printf("\nAD         : ");
 	for (i = 0; i < adlen; ++i) {
-		if ((i%BYTERATE) == 0)
-			printf("\n");
 		printf("%02x", ad[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
 	}
 
-	//printf("\nt_mlen = %2d\n", t_mlen);
-	printf("\nCiphertext =");
-	for (i = 0; i < (*clen - CRYPTO_ABYTES); ++i) {
-		if ((i%BYTERATE) == 0)
-			printf("\n");
+	printf("\nCiphertext : ");
+	for (i = 0; i < (clen - CRYPTO_ABYTES); ++i) {
 		printf("%02x", c[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
 	}
 
-	printf("\nTag = \n");
+	printf("\nTag        : ");
 	for (i = 0; i < CRYPTO_ABYTES; ++i) {
-		printf("%02x", c[(*clen - CRYPTO_ABYTES)+i]);
+		printf("%02x", c[(clen - CRYPTO_ABYTES)+i]);
 	}
 
 
 	printf("\n\nDECRYPTION\n");
 
-	//printf("\nt_mlen = %2d\n", t_mlen);
-	printf("\nCiphertext =");
-	for (i = 0; i < (*clen - CRYPTO_ABYTES); ++i) {
-		if ((i%BYTERATE) == 0)
-			printf("\n");
+	printf("\nCiphertext : ");
+	for (i = 0; i < (clen - CRYPTO_ABYTES); ++i) {
 		printf("%02x", c[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
+	}
+
+	printf("\nKey        : ");
+	for (i = 0; i < CRYPTO_KEYBYTES; ++i) {
+		printf("%02x", k[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
+	}
+
+	printf("\nNonce      : ");
+	for (i = 0; i < (STATELEN - CRYPTO_KEYBYTES); ++i) {
+		printf("%02x", npub[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
 	}
 
 	// tamper
 	//c[0] ^=1;
-
-	m_dec = malloc((size_t)(*clen));
-	if (crypto_aead_decrypt(m_dec, &mlen, NULL, c, *clen, ad, adlen, npub, k) == 0) {
-		printf("\nPlaintext =");
-		for (i = 0; i < mlen; ++i) {
-			if ((i%BYTERATE) == 0)
-				printf("\n");
+	if (crypto_aead_decrypt(m_dec, &mlen_dec, NULL, c, clen, ad, adlen, npub, k) == 0) {
+		printf("\nPlaintext  : ");
+		for (i = 0; i < mlen_dec; ++i) {
 			printf("%02x", m_dec[i]);
+			if (((i+1)%BYTERATE) == 0)
+				printf(" ");
 		}
 
-		printf("\nAD =");
+		printf("\nAD         : ");
 		for (i = 0; i < adlen; ++i) {
-			if ((i%BYTERATE) == 0)
-				printf("\n");
 			printf("%02x", ad[i]);
+			if (((i+1)%BYTERATE) == 0)
+				printf(" ");
 		}
 	}
 	else {
 		printf("Decryption failed\n");
 	}
 
+	printf("\nPlaintext  : ");
+	for (i = 0; i < mlen; ++i) {
+		printf("%02x", m[i]);
+		if (((i+1)%BYTERATE) == 0)
+			printf(" ");
+	}
 
-	free(clen);
-	free(c);
-	free(m_dec);
 
 	return 0;
 }
-*/
+#endif

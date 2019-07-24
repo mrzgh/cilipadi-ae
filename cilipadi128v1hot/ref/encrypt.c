@@ -1,8 +1,10 @@
 /*
  * encrypt.c
  *
- *  Created on: 22 Feb 2019
- *      Author: mrz
+ * CiliPadi lightweight authenticated encryption reference implementation.
+ *
+ * CiliPadi is owned by CyberSecurity Malaysia.
+ * For enquiries, send an email to cilipadi at cybersecurity dot my
  */
 
 #include "crypto_aead.h"
@@ -10,87 +12,30 @@
 #include "cilipadi.h"
 #include "api.h"
 #include <stdio.h>
+#include <string.h> // for memcpy
 #include <stdlib.h> // malloc() and free()
 
 /*
- * pad the message and AD if necessary
+ * print the array bytes
+ * x           : array of bytes
+ * start_index : start index of the array
+ * len         : how many bytes to print
+ * newline     : whether or not we want to print a newline (0 = no, 1 = yes)
  */
-int pad(
-		const unsigned char *m,
-		unsigned long long mlen,
-		const unsigned char *ad,
-		unsigned long long adlen,
-		unsigned char *mx,
-		unsigned long long mxlen,
-		unsigned char *adx,
-		unsigned long long adxlen) {
-	int i;
+void print_bytes(unsigned char *x, unsigned int start_index, unsigned int len, unsigned int newline) {
+	unsigned int i;
 
-	// original message
-	for (i = 0; i < mlen; ++i) {
-		mx[i] = m[i];
+	for (i = start_index; i < len; ++i) {
+		printf("%02x", x[i]);
 	}
-
-	// pad only if length is not a multiple of r bits
-	if (mxlen > mlen) {
-		// bit 1 followed by zeros
-		mx[mlen] = 0x80;
-
-		for (i = mlen+1; i < mxlen; ++i) {
-			mx[i] = 0;
-		}
-	}
-
-	// original AD
-	for (i = 0; i < adlen; ++i) {
-		adx[i] = ad[i];
-	}
-
-	// pad only if length is not a multiple of r bits
-	if (adxlen > adlen) {
-		// bit 1 followed by zeros
-		adx[adlen] = 0x80;
-
-		for (i = adlen+1; i < adxlen; ++i) {
-			adx[i] = 0;
-		}
-	}
-
-	return 0;
-}
-
-
-/*
- * Check the length of the message and AD whether they need padding
- */
-int padding_len_check(
-		unsigned long long mlen,
-		unsigned long long adlen,
-		unsigned long long *mxlen,
-		unsigned long long *adxlen) {
-	unsigned long long x;
-
-	// check padding on the plaintext
-	x = mlen % BYTERATE;
-
-	// if mlen is already a multiple of r bits, i.e. x=0, then set x = r to offset BYTERATE in the equation below
-	if (x==0) x = BYTERATE;
-
-	*mxlen = mlen + BYTERATE - x;
-
-	// check padding on the AD
-	x = adlen % BYTERATE;
-
-	// if length is already a multiple of r bits, i.e. x=0, then set x = r to offset BYTERATE in the equation below
-	if (x==0) x = BYTERATE;
-
-	*adxlen = adlen + BYTERATE - x;
-
-	return 0;
+	if (newline) printf("\n");
 }
 
 /*
- * Initializataion Phase
+ * Initialization Phase
+ * state : state bytes
+ * npub  : public nonce
+ * k     : secret key
  */
 int init_phase(unsigned char *state, const unsigned char *npub, const unsigned char *k) {
 	int i;
@@ -105,316 +50,243 @@ int init_phase(unsigned char *state, const unsigned char *npub, const unsigned c
 		state[i] = npub[i-CRYPTO_KEYBYTES];
 	}
 
-	//printf("initial state = \n");
-	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
-
 	permutation_384(state, AROUNDS);
 
 	return 0;
 }
 
-int ad_phase(unsigned char *state, unsigned char *state_r, const unsigned char *ad, unsigned long long adlen) {
-	int i, j, s_adlen;
-
-	s_adlen = adlen / BYTERATE;
+/*
+ * Associated Data Phase
+ * state   : state bytes
+ * state_r : the bitrate part of the state bytes
+ * ad      : AD bytes
+ * adlen   : length of AD
+ */
+int ad_phase(unsigned char *state, const unsigned char *ad, unsigned long long adlen) {
+	unsigned char x[BYTERATE] = { 0 };
 
 #ifdef DEBUG
-	printf("  state = ");
-	for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
+	unsigned int maxblock = adlen / BYTERATE;
+	printf("  S : ");
+	print_bytes(state, 0, STATELEN, 1);
 #endif
 
-	for (i = 0; i < s_adlen; ++i) {
-		for (j = 0; j < BYTERATE; ++j) {
-			state_r[j] = ad[i*BYTERATE+j];
-		}
-
-		// XOR with AD
-		xor_bytes(state, state_r, BYTERATE);
+	while (adlen >= BYTERATE) {
+		// XOR state with AD
+		xor_bytes(state, ad, BYTERATE);
 
 #ifdef DEBUG
-		printf("  AD_{%d} = ", i+1);
-		for (j=0; j<BYTERATE; j++) printf("%02x", ad[i*BYTERATE+j]); printf("\n");
-		printf("  after XOR with AD = ");
-		for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
+		printf("  AD_{%d} : ", maxblock - (unsigned int)(adlen/BYTERATE));
+		print_bytes((unsigned char *)ad, 0, BYTERATE, 1);
+
+		printf("  after XOR with AD\n  S : ");
+		print_bytes(state, 0, STATELEN, 1);
 #endif
 
 		permutation_384(state, BROUNDS);
+
+		adlen -= BYTERATE;
+		ad += BYTERATE;
 	}
 
-	// XOR the last bit of the state with '1' to indicate completion of AD phase
-	state[STATELEN-1] ^= 1;
+	xor_bytes(state, ad, adlen);
+
+	x[adlen] = 0x80;
+
+	xor_bytes(state, x, BYTERATE - adlen);
 
 #ifdef DEBUG
-		printf("  end of AD Phase = ");
-		for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
+		printf("  AD (last) : ");
+		print_bytes((unsigned char *)ad, 0, adlen, 0);
+		print_bytes(x, adlen, BYTERATE, 1);
+
+		printf("  after XOR with AD\n  S : ");
+		print_bytes(state, 0, STATELEN, 1);
 #endif
+
+	permutation_384(state, BROUNDS);
+
 	return 0;
 }
 
 /*
- * enc = { 0, 1 }. 0 = decrypt, 1 = encrypt
+ * Encryption / Decryption
+ * state_r        : bitrate part of the state bytes
+ * in             : input bytes (plaintext or ciphertext)
+ * inlen          : length of input (padded)
+ * unpadded_inlen : length of original input
+ * out            : output bytes (ciphertext or decrypted ciphertext)
+ * enc            : status whether 0 = decrypt or 1 = encrypt
  */
 int ciphering_phase(unsigned char *state,
-		unsigned char *state_r,
 		const unsigned char *in,
 		unsigned long long inlen,
-		unsigned long long unpadded_inlen,
 		unsigned char *out,
 		int enc) {
-	int i, j;
-	int t_inlen;
+	unsigned char x[BYTERATE] = { 0 };
 
-	// for decryption, t_inlen has to be deducted by one when processing the ciphertext to not count the tag
-	t_inlen = inlen/BYTERATE;
-	//if (enc==0) t_inlen--;
-
-	//printf("t_mlen = %d\n", t_inlen);
-
-	// allocate array for ciphertext
-	//c = malloc((size_t)(mlen + taglen)); // ciphertext + tag
+#ifdef DEBUG
+	unsigned int maxblock = inlen / BYTERATE;
+#endif
 
 	// encryption
-	if (enc) {
-		for (i = 0; i < t_inlen; ++i) {
+	if (enc == 1) {
 
+		while (inlen >= BYTERATE) {
 #ifdef DEBUG
-			printf("  M%2d: ", i+1);
-			// if this is the last message, print only the actual message
-			if (i == (t_inlen-1)) {
-				// it is the last message and the message is already in multiple of r bits
-				if ((unpadded_inlen % BYTERATE)==0) {
-					for (j = 0; j < BYTERATE; ++j) printf("%02x", in[i*BYTERATE+j]);
-					printf("\n");
-				}
-				else {
-					for (j = 0; j < (unpadded_inlen % BYTERATE); ++j) printf("%02x", in[i*BYTERATE+j]);
-					printf("\n");
-				}
-			}
-			else {
-				for (j = 0; j < BYTERATE; ++j) printf("%02x", in[i*BYTERATE+j]);
-				printf("\n");
-			}
-			printf("  state (before XOR with M%2d= ", i+1); for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]);
-			printf("\n");
-#endif
-			for (j = 0; j < BYTERATE; ++j) {
-				state_r[j] = in[i*BYTERATE+j];
-			}
-
-			// XOR message with bitrate part of the state
-			xor_bytes(state, state_r, BYTERATE);
-
-			// output ciphertext
-			// if this is the last message, only use unpadded one
-			if (i == (t_inlen-1)) {
-				if ((unpadded_inlen % BYTERATE)==0) {
-					for (j = 0; j < BYTERATE; ++j) {
-						out[i*BYTERATE+j] = state[j];
-					}
-				}
-				else {
-					for (j = 0; j < (unpadded_inlen % BYTERATE); ++j) {
-						out[i*BYTERATE+j] = state[j];
-					}
-				}
-			}
-			else {
-				for (j = 0; j < BYTERATE; ++j) {
-					out[i*BYTERATE+j] = state[j];
-				}
-			}
-
-#ifdef DEBUG
-			printf("  state (after XOR with M%2d= ", i+1); for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]);
-			printf("\n");
-			printf("  C%2d: ", i+1);
-			// if this is the last message, print only the actual message
-			if (i == (t_inlen-1)) {
-				// it is the last message and the message is already in multiple of r bits
-				if ((unpadded_inlen % BYTERATE)==0) {
-					for (j = 0; j < BYTERATE; ++j) printf("%02x", out[i*BYTERATE+j]);
-					printf("\n");
-				}
-				else {
-					for (j = 0; j < (unpadded_inlen % BYTERATE); ++j) printf("%02x", out[i*BYTERATE+j]);
-					printf("\n");
-				}
-			}
-			else {
-				for (j = 0; j < BYTERATE; ++j) printf("%02x", out[i*BYTERATE+j]);
-				printf("\n");
-			}
+			printf("  S (before XOR with In) : ");
+			print_bytes(state, 0, STATELEN, 1);
 #endif
 
-			//printf("state (after XOR with message %2d) \n", i+1);
-			//for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]); printf("\n");
-
-			if ((i+1) < t_inlen) {
-				permutation_384(state, BROUNDS);
-			}
-		}
-	}
-	// decryption
-	else {
-		for (i = 0; i <t_inlen; ++i) {
+			xor_bytes(state, in, BYTERATE);
+			memcpy(out, state, BYTERATE);
 
 #ifdef DEBUG
-			printf("  C%2d: ", i+1);
-			// if this is the last message, print only the actual message
-			if (i == (t_inlen-1)) {
-				if ((unpadded_inlen % BYTERATE)==0) {
-					for (j = 0; j < BYTERATE; ++j) printf("%02x", in[i*BYTERATE+j]);
-					printf("\n");
-				}
-				else {
-					for (j = 0; j < (unpadded_inlen % BYTERATE); ++j) printf("%02x", in[i*BYTERATE+j]);
-					printf("\n");
-				}
-			}
-			else {
-				for (j = 0; j < BYTERATE; ++j) printf("%02x", in[i*BYTERATE+j]);
-				printf("\n");
-			}
-#endif
-			// XOR ciphertext with bitrate part of the state to obtain message
-			// if this is the last message, only use unpadded one
-			if (i == (t_inlen-1)) {
-				if ((unpadded_inlen % BYTERATE)==0) {
-					for (j = 0; j < BYTERATE; ++j) {
-						out[i*BYTERATE+j] = in[i*BYTERATE+j] ^ state[j];
-					}
-				}
-				else {
-					for (j = 0; j < (unpadded_inlen % BYTERATE); ++j) {
-						out[i*BYTERATE+j] = in[i*BYTERATE+j] ^ state[j];
-					}
-				}
-			}
-			else {
-				for (j = 0; j < BYTERATE; ++j) {
-					out[i*BYTERATE+j] = in[i*BYTERATE+j] ^ state[j];
-				}
-			}
+			printf("  M%2d: ", maxblock - (unsigned int)(inlen/BYTERATE));
+			print_bytes((unsigned char *)in, 0, BYTERATE, 1);
 
-#ifdef DEBUG
-			printf("  M%2d: ", i+1);
-			// if this is the last message, print only the actual message
-			if (i == (t_inlen-1)) {
-				if ((unpadded_inlen % BYTERATE)==0) {
-					for (j = 0; j < BYTERATE; ++j) printf("%02x", out[i*BYTERATE+j]);
-					printf("\n");
-				}
-				else {
-					for (j = 0; j < (unpadded_inlen % BYTERATE); ++j) printf("%02x", out[i*BYTERATE+j]);
-					printf("\n");
-				}
-			}
-			else {
-				for (j = 0; j < BYTERATE; ++j) printf("%02x", out[i*BYTERATE+j]);
-				printf("\n");
-			}
+			printf("  C%2d: ", maxblock - (unsigned int)(inlen/BYTERATE));
+			print_bytes((unsigned char *)out, 0, BYTERATE, 1);
 
-			printf("  state (before replace with ciphertext = ");
-			for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]);
-			printf("\n");
+			printf("  S (after XOR with In)  : ");
+			print_bytes(state, 0, STATELEN, 1);
 #endif
 
-			// replace bitrate part of the state with the current ciphertext block
-			// if this is the last message, we need to handle it differently
-			if (i == (t_inlen-1)) {
-				if ((unpadded_inlen % BYTERATE)==0) {
-					for (j = 0; j < BYTERATE; ++j) {
-						state[j] = in[i*BYTERATE+j];
-					}
-				}
-				else {
-					for (j = 0; j < (unpadded_inlen % BYTERATE); ++j) {
-						state[j] = in[i*BYTERATE+j];
-					}
-					// XOR state with the padded value (0x80)
-					state[unpadded_inlen % BYTERATE] ^= in[i*BYTERATE+(unpadded_inlen % BYTERATE)];
-				}
-			}
-			else {
-				for (j = 0; j < BYTERATE; ++j) {
-					state[j] = in[i*BYTERATE+j];
-				}
-			}
-#ifdef DEBUG
-			printf("  state (after replace with ciphertext = ");
-			for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]);
-			printf("\n");
-#endif
+			permutation_384(state, BROUNDS);
 
-			//printf("state (after XOR with ciphertext %2d) \n", i+1);
-			//for (j = 0; j < STATELEN; ++j) printf("%02x", state[j]); printf("\n");
-
-			if ((i+1) < t_inlen) {
-				permutation_384(state, BROUNDS);
-			}
-		}
-	}
-
-	//printf("state (after permutation) \n");
-	//for (i = 0; i < STATELEN; ++i) printf("%02x", state[i]); printf("\n");
-
-	/*
-	if (enc) {
-		for (i = 0; i < BYTERATE; ++i) {
-			state_r[i] = in[(t_inlen-1)*BYTERATE+i];
-		}
-
-		// XOR message with bitrate part of the state
-		xor_bytes(state, state_r, BYTERATE);
-
-		// output ciphertext
-		for (i = 0; i < BYTERATE; ++i) {
-			out[inlen-CRYPTO_ABYTES+i] = state[i];
+			inlen -= BYTERATE;
+			in += BYTERATE;
+			out += BYTERATE;
 		}
 	}
 	else {
+		// decryption
+		// note: "in" includes the ciphertext (if any) and tag
+		while (inlen >= (CRYPTO_ABYTES + BYTERATE)) {
+#ifdef DEBUG
+			printf("  S (before XOR with In) : ");
+			print_bytes(state, 0, STATELEN, 1);
+#endif
+			memcpy(out, state, BYTERATE);
 
-		// output message
-		for (j = 0; j < BYTERATE; ++j) {
-			out[inlen-BYTERATE+j] = in[(t_inlen-1)*BYTERATE+j] ^ state[j];
+			xor_bytes(out, in, BYTERATE);
+			memcpy(state, in, BYTERATE);
+
+#ifdef DEBUG
+			printf("  C%2d: ", maxblock - (unsigned int)(inlen/BYTERATE));
+			print_bytes((unsigned char *)in, 0, BYTERATE, 1);
+
+			printf("  M%2d: ", maxblock - (unsigned int)(inlen/BYTERATE));
+			print_bytes((unsigned char *)out, 0, BYTERATE, 1);
+
+			printf("  S (after XOR with In)  : ");
+			print_bytes(state, 0, STATELEN, 1);
+#endif
+
+			permutation_384(state, BROUNDS);
+
+			inlen -= BYTERATE;
+			in += BYTERATE;
+			out += BYTERATE;
 		}
 
-		// replace bitrate part of the state with the current ciphertext block
-		for (j = 0; j < BYTERATE; ++j) {
-			state[j] = in[(t_inlen-1)*BYTERATE+j];
-		}
 	}
-	*/
 
-	//printf("state (after XOR with last input) \n");
-	//for (i = 0; i < STATELEN; ++i) printf("%02x", state[i]); printf("\n");
+
+	if (enc == 1) {
+		xor_bytes(state, in, inlen);
+
+		// copy BYTERATE bytes of state to out
+		memcpy(out, state, BYTERATE);
+
+		x[inlen] = 0x80;
+
+		xor_bytes(state, x, BYTERATE);
+
+#ifdef DEBUG
+		printf("inlen = %llu\n", inlen);
+
+		printf("  x : ");
+		print_bytes(x, 0, BYTERATE, 1);
+
+		printf("  S : ");
+		print_bytes(state, 0, STATELEN, 1);
+#endif
+
+
+#ifdef DEBUG
+		printf("  M (last) : ");
+		print_bytes((unsigned char *)in, 0, inlen, 1);
+
+		printf("  C (last): ");
+		print_bytes((unsigned char *)out, 0, inlen, 1);
+#endif
+	}
+	else {
+		// the last ciphertext block
+		x[inlen % CRYPTO_ABYTES] = 0x80;
+
+#ifdef DEBUG
+		printf("inlen = %llu\n", inlen);
+#endif
+
+		if (inlen > CRYPTO_ABYTES) {
+#ifdef DEBUG
+			printf("inlen > CRYPTO_ABYTES\n");
+#endif
+			for (int i = 0; i < (inlen - CRYPTO_ABYTES); ++i) {
+#ifdef DEBUG
+#endif
+				out[i] = state[i] ^ in[i];
+				state[i] = in[i];
+			}
+		}
+
+#ifdef DEBUG
+		printf("  x : ");
+		print_bytes(x, 0, BYTERATE, 1);
+
+		printf("  S : ");
+		print_bytes(state, 0, STATELEN, 1);
+#endif
+
+		xor_bytes(state, x, BYTERATE);
+
+#ifdef DEBUG
+		printf("  C (last) : ");
+		print_bytes((unsigned char *)in, 0, (inlen - CRYPTO_ABYTES), 0);
+
+		printf("  M (last): ");
+		print_bytes((unsigned char *)out, 0, (inlen - CRYPTO_ABYTES), 1);
+#endif
+	}
+
+#ifdef DEBUG
+
+		printf("  after XOR with In\n  S : ");
+		print_bytes(state, 0, STATELEN, 1);
+#endif
 
 	return 0;
 }
 
 /*
  * Finalization Phase
+ * state : state bytes
+ * k     : secret key bytes
  */
 int finalization_phase(unsigned char *state, const unsigned char *k) {
-	//int i;
 
 #ifdef DEBUG
-	int j;
-	printf("  state = ");
-	for (j=0; j<STATELEN; j++) printf("%02x", state[j]); printf("\n");
+	printf("  S : ");
+	print_bytes(state, 0, STATELEN, 1);
 #endif
 
 	permutation_384(state, AROUNDS);
 
-	//printf("state (after applying p^a_n) \n");
-	//for (i = 0; i < STATELEN; ++i) printf("%02x", state[i]); printf("\n");
-
 	// XOR with key
 	xor_bytes(state, k, CRYPTO_KEYBYTES);
 
-	//printf("state (after XOR with key) = \n");
-	//for (i = 0; i < STATELEN; ++i) printf("%02x", state[i]); printf("\n");
 	return 0;
 }
 
@@ -441,11 +313,6 @@ int crypto_aead_encrypt(
 	const unsigned char *k) {
 
 	unsigned char state[STATELEN]; // state
-	unsigned char state_r[BYTERATE]; // rate part of the state
-	unsigned char *mx; // padded message
-	unsigned long long mxlen = 0; // length of padded message
-	unsigned char *adx; // padded AD
-	unsigned long long adxlen = 0; // length of padded AD
 	int i;
 
 	/*
@@ -457,69 +324,44 @@ int crypto_aead_encrypt(
 	init_phase(state, npub, k);
 
 	/*
-	 * Padding check
-	 */
-	//printf("mlen = %llu, adlen = %llu, ", mlen, adlen);
-	padding_len_check(mlen, adlen, &mxlen, &adxlen);
-	//printf("mxlen = %llu, adxlen = %llu\n", mxlen, adxlen);
-
-	// initialize padded message and AD
-	mx = malloc((size_t)(mxlen));
-	adx = malloc((size_t)(adxlen));
-
-	pad(m, mlen, ad, adlen, mx, mxlen, adx, adxlen);
-
-#ifdef DEBUG
-	printf("  Padding Check\n");
-	printf("   M = ");
-	for (i = 0; i < mlen; ++i) printf("%02x", m[i]);
-	printf("\n");
-
-	printf("   M (padded) = ");
-	for (i = 0; i < mxlen; ++i) printf("%02x", mx[i]);
-	printf("\n");
-#endif
-
-
-	/*
 	 * Processing the associated data
 	 */
 #ifdef DEBUG
-	printf("-- AD PHASE --\n");
+	printf("\n-- AD PHASE --\n");
 #endif
-	//printf("state (before AD phase) = \n");
-	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
 
-	ad_phase(state, state_r, adx, adxlen);
+	if (adlen > 0)
+		ad_phase(state, ad, adlen);
 
-	//printf("state (after AD phase) = \n");
-	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
+	// XOR the last bit of the state with '1' to indicate completion of AD phase
+	state[STATELEN-1] ^= 1;
 
+#ifdef DEBUG
+		printf("  end of AD Phase\n  S : ");
+		print_bytes(state, 0, STATELEN, 1);
+#endif
 
 	/*
 	 * Processing the plaintext
 	 */
 #ifdef DEBUG
-	printf("-- MESSAGE ENCRYPTION PHASE --\n");
+	printf("\n-- MESSAGE ENCRYPTION PHASE --\n");
 #endif
-	ciphering_phase(state, state_r, mx, mxlen, mlen, c, 1);
+	ciphering_phase(state, m, mlen, c, 1);
 
 	/*
 	 * Finalization Phase
 	 */
 #ifdef DEBUG
-	printf("-- FINALIZATION PHASE --\n");
+	printf("\n-- FINALIZATION PHASE --\n");
 #endif
 	finalization_phase(state, k);
 
 	// output the tag
 	*clen = mlen + CRYPTO_ABYTES;
 	for (i = 0; i < CRYPTO_ABYTES; ++i) {
-		c[*clen-CRYPTO_ABYTES+i] = state[i];
+		c[mlen+i] = state[i];
 	}
-
-	free(mx);
-	free(adx);
 
 	return 0;
 }
@@ -547,12 +389,6 @@ int crypto_aead_decrypt(
 	const unsigned char *k) {
 
 	unsigned char state[STATELEN]; // 16-byte state
-	unsigned char state_r[BYTERATE]; // 8-byte rate part of the state
-	unsigned char *cx; // padded message (+ tag)
-	unsigned long long cxlen = 0; // length of padded message + tag
-	unsigned long long c_onlylen = clen - CRYPTO_ABYTES; // length of ciphertext without tag
-	unsigned char *adx; // padded AD
-	unsigned long long adxlen = 0; // length of padded AD
 	int i;
 	unsigned char tag[CRYPTO_ABYTES]; // computed tag
 
@@ -561,67 +397,56 @@ int crypto_aead_decrypt(
 	 */
 #ifdef DEBUG
 	int j;
-	printf("-- INIT PHASE --\n");
+	printf("\n-- INIT PHASE --\n");
 #endif
 	init_phase(state, npub, k);
-
-	/*
-	 * Padding check
-	 */
-	padding_len_check(c_onlylen, adlen, &cxlen, &adxlen);
-
-	// initialize padded message and AD
-	cx = malloc((size_t)(cxlen));
-	adx = malloc((size_t)(adxlen));
-
-	pad(c, c_onlylen, ad, adlen, cx, cxlen, adx, adxlen);
-
-#ifdef DEBUG
-	printf("  C = ");
-	for (i = 0; i < c_onlylen; ++i) printf("%02x", c[i]);
-	printf("\n");
-
-	printf("  C (padded) = ");
-	for (i = 0; i < cxlen; ++i) printf("%02x", cx[i]);
-	printf("\n");
-#endif
 
 	/*
 	 * Processing the associated data
 	 */
 
 #ifdef DEBUG
-	printf("-- AD PHASE --\n");
+	printf("\n-- AD PHASE --\n");
 #endif
-	//printf("state (before AD phase) = \n");
-	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
 
-	ad_phase(state, state_r, adx, adxlen);
+	if (adlen > 0)
+		ad_phase(state, ad, adlen);
 
-	//printf("state (after AD phase) = \n");
-	//for (i=0; i<STATELEN; i++) printf("%02x", state[i]); printf("\n");
+	// XOR the last bit of the state with '1' to indicate completion of AD phase
+	state[STATELEN-1] ^= 1;
 
+#ifdef DEBUG
+		printf("  end of AD Phase\n  S : ");
+		print_bytes(state, 0, STATELEN, 1);
+#endif
 
 	/*
 	 * Processing the ciphertext
 	 */
 #ifdef DEBUG
-	printf("-- MESSAGE DECRYPTION PHASE --\n");
+	printf("\n-- MESSAGE DECRYPTION PHASE --\n");
 #endif
-	ciphering_phase(state, state_r, cx, cxlen, c_onlylen, m, 0);
+	ciphering_phase(state, c, clen, m, 0);
 
 	/*
 	 * Finalization Phase
 	 */
 #ifdef DEBUG
-	printf("-- FINALIZATION PHASE --\n");
+	printf("\n-- FINALIZATION PHASE --\n");
 #endif
 	finalization_phase(state, k);
 
 	// output the tag
-	*mlen = clen - CRYPTO_ABYTES;
+	if (clen < CRYPTO_ABYTES) { // if the ciphertext is empty
+		*mlen = 0;
+	}
+	else {
+		*mlen = clen - CRYPTO_ABYTES;
+	}
 #ifdef DEBUG
-	printf("\nComputed Tag =\n");
+	printf("\nKey          : ");
+	print_bytes((unsigned char *)k, 0, CRYPTO_KEYBYTES, 1);
+	printf("Computed Tag : ");
 #endif
 	for (i = 0; i < CRYPTO_ABYTES; ++i) {
 		tag[i] = state[i];
@@ -636,28 +461,24 @@ int crypto_aead_decrypt(
 
 	// compare computed tag with the one received
 	for (i = 0; i < CRYPTO_ABYTES; ++i) {
-		if (tag[i] != c[clen-CRYPTO_ABYTES+i]) {
+		if (tag[i] != c[*mlen+i]) {
 
 #ifdef DEBUG
 			printf("Ciphertext not authenticated!\n");
-			printf("mlen: %llu,  clen: %llu, adlen: %llu\n", *mlen, clen, adlen);
-			printf("cxlen: %llu, adxlen: %llu\n", cxlen, adxlen);
-			printf("Message: "); for (j=0; j<*mlen; j++) printf("%02x", m[j]); printf("\n");
-			printf("AD: "); for (j=0; j<adlen; j++) printf("%02x", ad[j]); printf("\n");
-			printf("Key: "); for (j=0; j<CRYPTO_KEYBYTES; j++) printf("%02x", k[j]); printf("\n");
-			printf("Ciphertext: "); for (j=0; j<c_onlylen; j++) printf("%02x", c[j]); printf("\n");
-			printf("Tag in ciphertext: ");
+			printf("clen: %llu; mlen: %llu\n", clen, *mlen);
+			printf("Message   : "); for (j=0; j<*mlen; j++) printf("%02x", m[j]); printf("\n");
+			printf("AD        : "); for (j=0; j<adlen; j++) printf("%02x", ad[j]); printf("\n");
+			printf("Key       : "); for (j=0; j<CRYPTO_KEYBYTES; j++) printf("%02x", k[j]); printf("\n");
+			printf("Ciphertext: "); for (j=0; j<clen; j++) printf("%02x", c[j]); printf("\n");
+			printf("Tag in Ct : ");
 			for (j = 0; j < CRYPTO_ABYTES; ++j) {
-				printf("%02x", c[clen-CRYPTO_ABYTES]);
+				printf("%02x", c[*mlen+j]);
 			}
 			printf("\n");
 #endif
 			return -1;
 		}
 	}
-
-	free(cx);
-	free(adx);
 
 	return 0;
 }
