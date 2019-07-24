@@ -66,7 +66,7 @@ int main()
 
 	return ret;
 }
-//*/
+*/
 
 int generate_test_vectors()
 {
@@ -81,6 +81,8 @@ int generate_test_vectors()
 	unsigned long long  clen, mlen2;
 	int                 count = 1;
 	int                 func_ret, ret_val = KAT_SUCCESS;
+	// mrz
+	int i;
 
 	init_buffer(key, sizeof(key));
 	init_buffer(nonce, sizeof(nonce));
@@ -96,7 +98,13 @@ int generate_test_vectors()
 
 	for (unsigned long long mlen = 0; (mlen <= MAX_MESSAGE_LENGTH) && (ret_val == KAT_SUCCESS); mlen++) {
 
+		// mrz
+		mlen = 32;
+
 		for (unsigned long long adlen = 0; adlen <= MAX_ASSOCIATED_DATA_LENGTH; adlen++) {
+
+			// mrz
+			adlen = 1;
 
 			fprintf(fp, "Count = %d\n", count++);
 
@@ -107,22 +115,44 @@ int generate_test_vectors()
 			fprint_bstr(fp, "PT = ", msg, mlen);
 
 			fprint_bstr(fp, "AD = ", ad, adlen);
-
+			// crypto_aead_encrypt(c, &clen, m, mlen, ad, adlen, NULL, npub, k);
 			if ((func_ret = crypto_aead_encrypt(ct, &clen, msg, mlen, ad, adlen, NULL, nonce, key)) != 0) {
 				fprintf(fp, "crypto_aead_encrypt returned <%d>\n", func_ret);
 				ret_val = KAT_CRYPTO_FAILURE;
 				break;
 			}
 
+			// mrz
+			printf("after encrypt\n");
+			for (i = 0; i < mlen; ++i) {
+				printf("%02x ", msg[i]);
+			}
+			printf("\n");
+
 			fprint_bstr(fp, "CT = ", ct, clen);
 
 			fprintf(fp, "\n");
 
+			// mrz
+			printf("before decrypt\n");
+			for (i = 0; i < mlen; ++i) {
+				printf("%02x ", msg[i]);
+			}
+			printf("\n");
+
+			// crypto_aead_decrypt(m_dec, &mlen_dec, NULL, c, clen, ad, adlen, npub, k)
 			if ((func_ret = crypto_aead_decrypt(msg2, &mlen2, NULL, ct, clen, ad, adlen, nonce, key)) != 0) {
 				fprintf(fp, "crypto_aead_decrypt returned <%d>\n", func_ret);
 				ret_val = KAT_CRYPTO_FAILURE;
 				break;
 			}
+
+			// mrz
+			printf("after decrypt\n");
+			for (i = 0; i < mlen; ++i) {
+				printf("%02x ", msg[i]);
+			}
+			printf("\n");
 
 			if (mlen != mlen2) {
 				fprintf(fp, "crypto_aead_decrypt returned bad 'mlen': Got <%llu>, expected <%llu>\n", mlen2, mlen);
@@ -133,9 +163,20 @@ int generate_test_vectors()
 			if (memcmp(msg, msg2, mlen)) {
 				fprintf(fp, "crypto_aead_decrypt did not recover the plaintext\n");
 				ret_val = KAT_CRYPTO_FAILURE;
+				for (i = 0; i < mlen; ++i) {
+					printf("%02x ", msg[i]);
+				}
+				printf("\n");
+				for (i = 0; i < mlen; ++i) {
+					printf("%02x ", msg2[i]);
+				}
 				break;
 			}
+			// mrz
+			break;
 		}
+		// mrz
+		break;
 	}
 
 	fclose(fp);
