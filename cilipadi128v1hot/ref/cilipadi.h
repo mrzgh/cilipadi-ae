@@ -18,6 +18,7 @@
 //#define DEBUGP // debug for the permutation function P - more detailed printouts
 //#define OWNMAIN
 
+void print_bytes(unsigned char *x, unsigned int start_index, unsigned int len, unsigned int newline);
 int permutation_256(unsigned char *state, int rounds);
 int permutation_384(unsigned char *state, int rounds);
 int f_function(unsigned char *x, int l, int pround);
