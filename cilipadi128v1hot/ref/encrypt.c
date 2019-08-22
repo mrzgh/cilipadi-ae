@@ -93,7 +93,7 @@ int ad_phase(unsigned char *state, const unsigned char *ad, unsigned long long a
 
 	x[adlen] = 0x80;
 
-	xor_bytes(state, x, BYTERATE - adlen);
+	xor_bytes(state, x, BYTERATE);
 
 #ifdef DEBUG
 		printf("  AD (last) : ");
